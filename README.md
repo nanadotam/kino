@@ -1,123 +1,60 @@
 # Kino
 
-A simple, safe way to free up space on your Mac. Kino finds the junk that apps leave behind, shows you what it is and how big it is, and **asks before deleting anything.**
+A small, fast Mac app that frees up disk space by clearing the junk apps leave behind.
+Native Rust backend plus the system WebView, so it's about 9 MB on disk, the download is about 3 MB, and it runs on Apple Silicon and Intel Macs (macOS 10.15+).
 
-No installs. No Python. Nothing to set up.
+- **Cleanup**: shows each app's cache (Chrome, Spotify, Slack, Xcode, etc.) with its size and what it is. Tick what you want and click **Clean selected**. Risky items (iPhone backups, Xcode archives) are never pre-ticked.
+- **System junk**: protected system caches, logs, and Time Machine local snapshots. macOS shows its own password prompt; Kino never sees the password.
+- **Trash**: empty it in one click.
+- **Large files**: finds big files in your home folder. Selected ones go to the **Trash**, so you can get them back.
+- **Storage**: shows which folders in your home folder are biggest.
 
----
-
-## Before you start
-
-1. **Quit your apps** (Chrome, Safari, Slack, Spotify). More can be cleaned when they're closed.
-2. Have your **Mac login password** ready. You'll only need it for one optional step.
-
----
-
-## How to open it
-
-**Double-click `Kino.command`.**
-
-A Terminal window opens and Kino starts. That's it.
-
-> **First time only:** if macOS says it *"can't be opened because Apple cannot check it"*, **right-click** the file, choose **Open**, then click **Open** again. After this one time, double-clicking works normally.
+Nothing is deleted until you click a button and confirm.
 
 ---
 
-## What happens next
+## Installing on a Mac (send this part to friends)
 
-### 1. A one-minute tour
+1. Open **Kino.dmg**.
+2. Drag **Kino** onto the **Applications** folder.
+3. Kino isn't signed with an Apple Developer ID yet, so macOS will block it the first time. Open **Terminal** (press `⌘ Space`, type *Terminal*, press Enter), paste this and press Enter:
 
-Kino explains what "cache" means and how to answer. You answer with **one key**, no Enter needed.
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Kino.app
+   ```
 
-| Press | What it does |
-|:--|:--|
-| **Y** | Yes, clear it |
-| **N** | No, skip it |
-| **A** | Yes to this one and all the remaining safe ones |
-| **Q** | Quit and stop cleaning |
+4. Open Kino from Applications or Launchpad. Done.
 
-There's a practice question so you can try it. Nothing is deleted during the tour. Press **S** at the start to skip it.
+**Rather not use Terminal?** Try to open Kino once (it gets blocked), then go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the Kino message.
 
-### 2. It scans your Mac
-
-A progress bar shows how far along it is:
-
-```
-[##########                    ]  36%  Spotify
-```
-
-### 3. It goes through each app, one by one
-
-Each app gets its own screen with what it is, how big it is, and where it lives:
-
-```
-[2 of 11]  Google Chrome  -  2.5 GB
-  Saved web pages, images and scripts so sites load faster.
-  You stay logged in; sites just reload a bit slower once.
-  Location: ~/Library/Caches/com.google.Chrome
-  Clear it?  [Y]es / [N]o / [A]ll / [Q]uit
-```
-
-Small caches from lots of apps are grouped into one line so you're not asked 100 times.
-
-### 4. It may ask for your password
-
-Some junk sits in protected system folders. Kino tells you **exactly what and why** before asking:
-
-```
-Some more junk needs your Mac password to remove:
-
-  - System-wide app caches        2.4 GB
-  - Time Machine local snapshots  3 found (can be many GB)
-
-Enter your password to clean these too?  [Y]es / [N]o
-```
-
-- Press **N** to skip this whole section.
-- When asked for the password, **nothing appears as you type**. That's normal. Type it and press Enter.
-- The password only unlocks those folders. It is **not saved and not sent anywhere**, and Kino forgets it right after.
-- You still get a Yes/No for each item.
-
-### 5. It shows where your space is going
-
-A short list of your biggest folders, then any file over **500 MB** with a number. Type the numbers you want to remove (like `1 3`) and press Enter.
-
-These go to the **Trash**, not straight to deletion. You can get them back until you empty it.
-
-### 6. Trash and results
-
-Kino offers to empty the Trash, then shows your free space before and after.
+### Permissions you might see
+- **"Kino would like to access files in your Documents / Downloads / Desktop"**: happens when you use *Large files* or *Storage*. Click **Allow**.
+- **"Kino wants to control Finder"**: used only to empty the Trash. Click **OK**.
+- **Optional:** to let Kino clean more (Safari and Mail caches, and show the Trash size), add Kino under **System Settings → Privacy & Security → Full Disk Access**.
 
 ---
 
-## What it will never touch
+## Building it yourself
 
-- Your photos, documents, music and videos
-- Your Photos library
-- Your real Time Machine backups
-- Anything it hasn't asked you about first
+Needs [Rust](https://rustup.rs) and the Xcode Command Line Tools (`xcode-select --install`).
 
-Phone backups (iPhone/iPad) are marked **CAREFUL** and are always asked about one at a time.
-
----
-
-## Just want to look?
-
-Run this in Terminal. Nothing gets deleted in this mode:
-
-```
-bash Kino.command --scan-only
+```bash
+./scripts/build-dmg.sh     # → dist/Kino.app and dist/Kino.dmg (universal)
+cargo run                  # run a debug build
+cargo test                 # safety tests (e.g. cleaning never follows symlinks)
 ```
 
+Project layout:
 
----
+| Path | What |
+| --- | --- |
+| `src/main.rs` | Commands the UI calls: scan, clean, trash, etc. |
+| `src/scan.rs` | Folder sizing, cleaning, list of known junk locations |
+| `ui/` | The interface (plain HTML/CSS/JS, shadcn-style) |
+| `scripts/build-dmg.sh` | Builds, ad-hoc signs, and packages the DMG |
+| `scripts/make-icon.swift` | Regenerates the app icon |
+| `Kino.command` | The original Terminal version (still works) |
 
-## Troubleshooting
+**Safety:** the UI can only ask the backend to clean items the scan itself found (by id). It can never pass in an arbitrary path. Cleaning empties a folder's contents and never follows symlinks out of it.
 
-| Problem | Fix |
-|:--|:--|
-| Double-click does nothing or says permission denied | Open **Terminal**, type `bash ` (with a space), drag `Kino.command` into the window, press Enter. |
-| "Apple cannot check it" message | Right-click the file, choose **Open**, then **Open** again. |
-| macOS asks if Terminal can control Finder | Click **OK**. This lets Kino empty the Trash. |
-| Password not accepted | Check Caps Lock. Use the password you log in to your Mac with. |
-| Not much was freed | Close all apps and run Kino again. |
+To ship without the Terminal step later, sign with a Developer ID certificate and notarize (`codesign --options runtime -s "Developer ID Application: …"` then `xcrun notarytool submit`).

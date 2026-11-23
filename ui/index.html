@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kino</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="brand" data-tauri-drag-region>
+      <span class="logo">✦</span> Kino
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="clean" role="tab">Cleanup</button>
+      <button class="tab" data-tab="large" role="tab">Large files</button>
+      <button class="tab" data-tab="storage" role="tab">Storage</button>
+    </nav>
+    <button class="btn ghost sm" id="help-btn" title="Show the tour">?</button>
+  </header>
+
+  <main>
+    <!-- Disk summary -->
+    <section class="card disk">
+      <div class="disk-row">
+        <div>
+          <div class="muted sm">Free space</div>
+          <div class="big" id="free">—</div>
+        </div>
+        <div class="right">
+          <div class="muted sm">Selected to clean</div>
+          <div class="big accent" id="selected-total">0 B</div>
+        </div>
+      </div>
+      <div class="meter"><div class="meter-fill" id="disk-fill"></div></div>
+      <div class="muted xs" id="disk-caption">&nbsp;</div>
+    </section>
+
+    <!-- Cleanup tab -->
+    <section class="panel" id="panel-clean">
+      <div class="scanning" id="scanning">
+        <div class="spinner"></div>
+        <div>
+          <div class="strong">Scanning your Mac…</div>
+          <div class="muted xs" id="scan-label">&nbsp;</div>
+        </div>
+        <div class="progress"><div id="scan-fill"></div></div>
+      </div>
+
+      <div id="clean-content" hidden>
+        <div class="section-head">
+          <h2>App caches &amp; junk</h2>
+          <div class="row gap">
+            <button class="btn ghost sm" id="select-all">Select all</button>
+            <button class="btn ghost sm" id="select-none">Select none</button>
+            <button class="btn outline sm" id="rescan">Rescan</button>
+          </div>
+        </div>
+        <p class="muted sm hint">Safe to clear: apps rebuild these on their own. Your photos, documents and messages aren't touched. Tip: quit your browsers and chat apps first so more can be cleared.</p>
+        <div class="list card" id="safe-list"></div>
+
+        <div id="careful-wrap" hidden>
+          <div class="section-head"><h2>Be careful</h2></div>
+          <p class="muted sm hint">These can't be rebuilt. Only select them if you're sure.</p>
+          <div class="list card" id="careful-list"></div>
+        </div>
+
+        <div class="section-head"><h2>More</h2></div>
+        <div class="list card">
+          <div class="item">
+            <div class="ico">🗑</div>
+            <div class="grow">
+              <div class="strong">Trash</div>
+              <div class="muted xs" id="trash-size">Files you already deleted.</div>
+            </div>
+            <button class="btn outline sm" id="empty-trash">Empty Trash</button>
+          </div>
+          <div class="item">
+            <div class="ico">🔒</div>
+            <div class="grow">
+              <div class="strong">System junk <span class="badge">Needs password</span></div>
+              <div class="muted xs" id="admin-desc">Protected system caches and logs.</div>
+            </div>
+            <button class="btn outline sm" id="admin-btn">Clean…</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Large files tab -->
+    <section class="panel" id="panel-large" hidden>
+      <div class="section-head">
+        <h2>Large files</h2>
+        <div class="row gap">
+          <select id="min-size" class="select">
+            <option value="100">Over 100 MB</option>
+            <option value="500" selected>Over 500 MB</option>
+            <option value="1000">Over 1 GB</option>
+            <option value="5000">Over 5 GB</option>
+          </select>
+          <button class="btn sm" id="find-large">Find</button>
+        </div>
+      </div>
+      <p class="muted sm hint">Files you pick go to the Trash, so you can still get them back. macOS may ask if Kino can look in Documents, Downloads, etc. Click Allow.</p>
+      <div id="large-empty" class="empty card">
+        <div class="ico-lg">📦</div>
+        <div class="strong">Find what's taking up space</div>
+        <div class="muted sm">Click <b>Find</b> to look for big files in your home folder.</div>
+      </div>
+      <div class="list card" id="large-list" hidden></div>
+    </section>
+
+    <!-- Storage tab -->
+    <section class="panel" id="panel-storage" hidden>
+      <div class="section-head">
+        <h2>Where your space goes</h2>
+        <div class="row gap">
+          <button class="btn outline sm" id="open-settings">Open Storage settings</button>
+          <button class="btn sm" id="analyze">Analyze</button>
+        </div>
+      </div>
+      <p class="muted sm hint">Sizes of the folders in your home folder.</p>
+      <div id="storage-empty" class="empty card">
+        <div class="ico-lg">📊</div>
+        <div class="strong">See which folders are biggest</div>
+        <div class="muted sm">Click <b>Analyze</b>. This can take a minute on a full Mac.</div>
+      </div>
+      <div class="card bars" id="storage-list" hidden></div>
+      <div class="card tips">
+        <div class="strong">Still need space?</div>
+        <ul class="muted sm">
+          <li>Move photos and videos to iCloud or an external drive.</li>
+          <li>Uninstall apps you don't use (drag them from Applications to the Trash).</li>
+          <li>Check <b>Large files</b> for old downloads, videos and disk images.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sticky action bar -->
+  <footer class="actionbar" id="actionbar">
+    <div class="muted sm" id="action-text">Nothing selected</div>
+    <button class="btn" id="action-btn" disabled>Clean selected</button>
+  </footer>
+
+  <!-- Dialog -->
+  <div class="overlay" id="dialog" hidden>
+    <div class="dialog card" role="dialog" aria-modal="true">
+      <h3 id="dlg-title"></h3>
+      <div class="muted sm" id="dlg-body"></div>
+      <div class="row gap end">
+        <button class="btn outline" id="dlg-cancel">Cancel</button>
+        <button class="btn" id="dlg-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div class="overlay" id="tour" hidden>
+    <div class="dialog card tour">
+      <div class="steps"><span></span><span></span><span></span></div>
+      <div class="tour-step" data-step="0">
+        <div class="ico-lg">✦</div>
+        <h3>Welcome to Kino</h3>
+        <p class="muted sm">Kino frees up space on your Mac by clearing junk files that apps leave behind. <b>Nothing is deleted until you click Clean.</b></p>
+      </div>
+      <div class="tour-step" data-step="1" hidden>
+        <div class="ico-lg">🧹</div>
+        <h3>What is “cache”?</h3>
+        <p class="muted sm">Apps save temporary copies of pictures, web pages and songs so they open faster. Over time these can take many gigabytes. Clearing them is safe: apps make new ones when needed.</p>
+      </div>
+      <div class="tour-step" data-step="2" hidden>
+        <div class="ico-lg">☑︎</div>
+        <h3>How it works</h3>
+        <p class="muted sm">Tick what you want to clear, then click <b>Clean selected</b>. Items under <b>Be careful</b> are never ticked for you. Some system junk needs your Mac password. macOS asks for it itself, and Kino never sees or stores it.</p>
+      </div>
+      <div class="row gap end">
+        <button class="btn ghost" id="tour-skip">Skip</button>
+        <button class="btn" id="tour-next">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
